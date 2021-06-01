@@ -830,8 +830,11 @@ def new_invoice_btn():
         result = result.replace('@', '\n')
     
     if (invoice_win.winfo_exists() == 1):
-        exit(invoice_win)  
-        show_h_invoices_btn()
+        exit(invoice_win)
+        if (firm_id == 'H'):
+            show_h_invoices_btn()
+        else:
+            show_invoices_btn()
     
 def total_hotel_invoice_info():
     cursor.execute(f'''
@@ -1053,7 +1056,7 @@ def show_hotel_staff_btn():
     hotel_staff_win.mainloop()
 
 
-# In[43]:
+# In[61]:
 
 
 def exit():
@@ -1629,7 +1632,7 @@ def showRating():
     showFeedback.mainloop()
 
 
-# In[44]:
+# In[62]:
 
 
 def defineInput(variable):
@@ -1681,8 +1684,7 @@ def make_reservation(g_id,g_name,g_surname,g_address,g_db,g_fam_stat,g_phone,g_e
                 g_des_floor = 'NULL'
             else:
                 g_des_floor = '\'' + g_des_floor + '\'' 
-        cursorTwo.execute("""exec registerNewGuest @guestId = {} , @guestName = {} , @guestSurname = {},@guestAddress = {} ,@guestDateOfBirth = {},@guestFamilyStatus = {}, @guestPhoneNumber = {}, @guestEmail = {}, @desiredRoomType = {},  @desiredFloor = {}, @dayOfArrival= {}, @dayOfDeparture = {}, @prepayment = {}, @petNumber = {}, @childNumber = {}, @gender = {}""".format(g_id,g_name,g_surname,g_address,g_db,g_fam_stat,g_phone,g_email,g_des_type,g_des_floor,g_day_arr,g_day_dep,prep,pet_number,child_number,g_gender))
-        
+        cursor.execute("""exec registerNewGuest @guestId = {} , @guestName = {} , @guestSurname = {},@guestAddress = {} ,@guestDateOfBirth = {},@guestFamilyStatus = {}, @guestPhoneNumber = {}, @guestEmail = {}, @desiredRoomType = {},  @desiredFloor = {}, @dayOfArrival= {}, @dayOfDeparture = {}, @prepayment = {}, @petNumber = {}, @childNumber = {}, @gender = {}""".format(g_id,g_name,g_surname,g_address,g_db,g_fam_stat,g_phone,g_email,g_des_type,g_des_floor,g_day_arr,g_day_dep,prep,pet_number,child_number,g_gender))
         for l in cursorTwo:
             l = list(l)
             result = str(l[0])
@@ -1692,6 +1694,8 @@ def make_reservation(g_id,g_name,g_surname,g_address,g_db,g_fam_stat,g_phone,g_e
             print(result)
         conn.commit()
         if(noProb == False):
+            saveReservations()
+            saveRoomAudit()
             if(subMain.winfo_exists()==1):
                 subMain.destroy()
                 showAllReservations()
@@ -1795,7 +1799,7 @@ def do_room_reservation():
     book_buttom = Button(main,text = 'RESERVE',command = lambda:make_reservation(guest_id_entry.get(),guest_name_entry.get(),guest_surname_entry.get(),guest_address_entry.get(),guest_birthday_entry.get(),guest_family_status_box.get(),guest_mob_number_entry.get(),guest_email_entry.get(),guest_desired_type_room_box.get(),guest_desired_floor_room_box.get(),guest_arrval_date_entry.get(),guest_departure_date_entry.get(),guest_prep_entry.get(),guest_pets_number_entry.get(),guest_children_number_entry.get(),guest_gender_entry.get()))
                                                                                                 
     currReservations_Button = Button(main,text = 'Show Reservations',command = showAllReservations)
-
+    
     today = datetime.date(datetime.now())
 
     intoLabel_reservation.pack()
@@ -1840,12 +1844,13 @@ def do_room_reservation():
     main.mainloop()
 
 def get_guest_reservations(guest_id):
+    main = Tk()
     guest_id = defineInput(guest_id)
-    cursorTwo.execute("""select res.reservation_id,res.arrival_date,res.departure_date,res.reservation_room_id,res.reservation_date,
+    cursor.execute("""select res.reservation_id,res.arrival_date,res.departure_date,res.reservation_room_id,res.reservation_date,
     res.prepayment,res.reservation_status,g_r.guest_id,g_r.pet_num,g_r.child_num
     from RESERVATION res join GUEST_RESERVATION g_r on res.reservation_id = g_r.reservation_id where g_r.guest_id = {};""".format(guest_id))
     output = ''
-    for row in cursorTwo:
+    for row in cursor:
         output+=str(row) + '\n'
     output = output.replace(',',' , ')
     allReservations_label = Label(main,text = output)
@@ -1857,14 +1862,19 @@ def make_cancelling(guest_id,res_arriv_day,res_dep_day):
     res_arriv_day = defineInput(res_arriv_day)
     res_dep_day = defineInput(res_dep_day)
     proc_result = ''
+    exist_mistake = False
     cursor.execute("""exec spCancelBooking @guestId = {}, @arrivalGuestDate = {} , @departureGuestDate = {} ;""".format(guest_id,res_arriv_day,res_dep_day))
     for row in cursor:
         row = list(row)
         result = str(row[0])
         if('Sorry' in result):
+            exist_mistake = True
             messagebox.showerror('Error',result)
         print(row)
     cursor.commit()
+    if exist_mistake == False:
+        saveReservations()
+        saveRoomAudit()
 
 def cancel_reservation():
     main = Tk()
@@ -1997,6 +2007,7 @@ def join_procedure():
 def evict_guest(guest_id,payment_type):
     main = Tk()
     main.geometry(f'{w}x{h}')
+    exist_mistake = False
     guest_id = defineInput(guest_id)
     payment_type = defineInput(payment_type) # PAYMENT_TYPE УКАЗАТЬ
     proc_result = ''
@@ -2006,8 +2017,12 @@ def evict_guest(guest_id,payment_type):
         result = str(l[0])
         if('Sorry' in result):
             messagebox.showerror('Error',result)
+            exist_mistake = True
         print(result)
     conn.commit()
+    if exist_mistake == False:
+        saveReservations()
+        saveRoomAudit()
 
 def dismiss_guest():
     main = Tk()
@@ -2084,7 +2099,7 @@ def exit_system():
     #ADD HERE
 
 
-# In[45]:
+# In[63]:
 
 
 def receptionistWin():
@@ -2134,15 +2149,39 @@ def guest_enter_check(res_id,guest_id):
             if('Sorry' in result):
                 messagebox.showerror('Error',result)
                 isProblem = True
-            if (result=='Receptionist'):
-                initial.destroy()
-                receptionistWin()
-            if (result == 'Hotel Manager'):
-                initial.destroy()
-                hotelManagerWin()
-
+            
     else:
         messagebox.showerror('Error','Reservation ID and guest ID should be both numeric!')
+def saveReservations():
+    cursor.execute("""select * from RESERVATION res join Guest_Reservation g_r on res.reservation_id = g_r.reservation_id""")
+    var_fix = []
+    for row in cursor:
+        var_fix.append(list(map(str,list(row))))
+    f = open("pythonReservations.txt","w")
+    word = ''
+    for k in var_fix:
+        for j in k:
+            j = j.replace('  ','')
+        word +=str(k)
+        word +='\n'
+
+    f.write(word)
+    f.close()
+
+def saveRoomAudit():
+    cursor.execute("""select * from room_audit""")
+    var_fix = []
+    for row in cursor:
+        var_fix.append(list(map(str,list(row))))
+    f = open("PythonRoomAudit.txt","w")
+    word = ''
+    for k in var_fix:
+        for j in k:
+            j = j.replace('  ','')
+        word += str(k)
+        word += '\n'
+    f.write(word)
+    f.close()
 
 def final_enter(login,password):
     login = defineInput(login)
